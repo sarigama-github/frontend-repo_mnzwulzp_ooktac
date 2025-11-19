@@ -1,71 +1,101 @@
+import { useEffect, useMemo, useState } from 'react'
+import Header from './components/Header'
+import MediaCard from './components/MediaCard'
+import DetailModal from './components/DetailModal'
+
 function App() {
+  const baseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+  const [activeTab, setActiveTab] = useState('novel')
+  const [query, setQuery] = useState('')
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [selected, setSelected] = useState(null)
+
+  const endpoint = useMemo(() => {
+    return {
+      novel: '/api/novels',
+      comic: '/api/comics',
+      anime: '/api/animes',
+      movie: '/api/movies',
+    }[activeTab]
+  }, [activeTab])
+
+  const fetchItems = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const url = new URL(endpoint, baseUrl)
+      if (query) url.searchParams.set('q', query)
+      const res = await fetch(url.toString())
+      if (!res.ok) throw new Error('Gagal memuat data')
+      const data = await res.json()
+      setItems(data.items || [])
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchItems()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, query])
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Subtle pattern overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.05),transparent_50%)]"></div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+      <Header activeTab={activeTab} setActiveTab={setActiveTab} onSearch={setQuery} />
 
-      <div className="relative min-h-screen flex items-center justify-center p-8">
-        <div className="max-w-2xl w-full">
-          {/* Header with Flames icon */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center mb-6">
-              <img
-                src="/flame-icon.svg"
-                alt="Flames"
-                className="w-24 h-24 drop-shadow-[0_0_25px_rgba(59,130,246,0.5)]"
-              />
-            </div>
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* Hero */}
+        <section className="mb-6">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Baca & Tonton Tanpa Batas</h1>
+          <p className="text-slate-300 mt-2">Novel, komik, anime, dan film — semuanya dalam satu tempat.</p>
+        </section>
 
-            <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-              Flames Blue
-            </h1>
-
-            <p className="text-xl text-blue-200 mb-6">
-              Build applications through conversation
-            </p>
+        {/* Content grid */}
+        {loading ? (
+          <div className="py-24 text-center text-slate-300">Memuat...</div>
+        ) : error ? (
+          <div className="py-24 text-center text-red-400">{error}</div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {items.map((it) => (
+              <MediaCard key={it._id || it.id} item={it} type={activeTab} onSelect={setSelected} />
+            ))}
           </div>
+        )}
 
-          {/* Instructions */}
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-blue-500/20 rounded-2xl p-8 shadow-xl mb-6">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
-                1
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">Describe your idea</h3>
-                <p className="text-blue-200/80 text-sm">Use the chat panel on the left to tell the AI what you want to build</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
-                2
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">Watch it build</h3>
-                <p className="text-blue-200/80 text-sm">Your app will appear in this preview as the AI generates the code</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
-                3
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">Refine and iterate</h3>
-                <p className="text-blue-200/80 text-sm">Continue the conversation to add features and make changes</p>
-              </div>
-            </div>
+        {/* Empty state */}
+        {!loading && !error && items.length === 0 && (
+          <div className="py-20 text-center text-slate-400">
+            Belum ada konten. Tambahkan data melalui API atau gunakan tombol dummy di bawah.
           </div>
+        )}
 
-          {/* Footer */}
-          <div className="text-center">
-            <p className="text-sm text-blue-300/60">
-              No coding required • Just describe what you want
-            </p>
-          </div>
+        {/* Quick add demo data */}
+        <div className="mt-8 flex flex-wrap gap-3">
+          <button
+            onClick={async () => {
+              const payloads = {
+                novel: { title: 'Contoh Novel', author: 'Anonim', synopsis: 'Cerita seru...', cover_url: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?q=80&w=1200&auto=format&fit=crop' },
+                comic: { title: 'Contoh Komik', author: 'Mangaka', synopsis: 'Aksi lucu...', cover_url: 'https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?q=80&w=1200&auto=format&fit=crop' },
+                anime: { title: 'Contoh Anime', studio: 'Studio X', synopsis: 'Petualangan epik', cover_url: 'https://images.unsplash.com/photo-1584907797070-6edb63ce4bf5?q=80&w=1200&auto=format&fit=crop', video_url: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+                movie: { title: 'Contoh Film', director: 'Sutradara Y', synopsis: 'Drama menegangkan', cover_url: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1200&auto=format&fit=crop', video_url: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+              }
+              const res = await fetch(baseUrl + endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloads[activeTab]) })
+              if (res.ok) fetchItems()
+            }}
+            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-white"
+          >
+            Tambah Contoh {activeTab}
+          </button>
+          <a href="/test" className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg">Cek Koneksi</a>
         </div>
-      </div>
+      </main>
+
+      <DetailModal open={!!selected} onClose={() => setSelected(null)} item={selected} />
     </div>
   )
 }
